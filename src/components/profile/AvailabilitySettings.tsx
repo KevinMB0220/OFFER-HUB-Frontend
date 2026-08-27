@@ -1,22 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Icon, ICON_PATHS, LoadingSpinner } from "@/components/ui/Icon";
 import { NEUMORPHIC_CARD, NEUMORPHIC_INPUT, INPUT_ERROR_STYLES, PRIMARY_BUTTON } from "@/lib/styles";
-import { useAuthStore } from "@/stores/auth-store";
-import { getProfile } from "@/lib/api/profile";
-import {
-  DEFAULT_FREELANCER_AVAILABILITY,
-  getFreelancerAvailability,
-  listIanaTimezones,
-  updateFreelancerAvailability,
-  type FreelancerAvailability,
-} from "@/lib/api/availability";
+import { useAvailabilityForm } from "@/hooks/useAvailabilityForm";
+import { ToggleSwitch } from "@/components/ui/ToggleSwitch";
+import { AvailabilityPreviewCard } from "@/components/profile/AvailabilityPreviewCard";
+import { TimezoneCombobox } from "@/components/ui/TimezoneCombobox";
+import { getBrowserTimezone, listIanaTimezones } from "@/lib/timezone-utils";
 
 const MIN_HOURS = 1;
 const MAX_HOURS = 80;
-const AUTOSAVE_MS = 500;
 
 const WEEKDAYS: { value: number; label: string }[] = [
   { value: 0, label: "Sun" },
@@ -28,280 +23,47 @@ const WEEKDAYS: { value: number; label: string }[] = [
   { value: 6, label: "Sat" },
 ];
 
-function getBrowserTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
-
 function clampHours(n: number): number {
   if (Number.isNaN(n)) return MIN_HOURS;
   return Math.min(MAX_HOURS, Math.max(MIN_HOURS, Math.round(n)));
 }
 
-interface ToggleSwitchProps {
-  enabled: boolean;
-  onChange: () => void;
-  label: string;
-  description?: string;
-}
-
-const TOGGLE_STYLES = cn(
-  "relative w-12 h-6 rounded-full transition-all duration-200 cursor-pointer",
-  "shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]"
-);
-
-const TOGGLE_THUMB = cn(
-  "absolute top-0.5 w-5 h-5 rounded-full transition-all duration-200",
-  "shadow-[2px_2px_4px_#d1d5db,-2px_-2px_4px_#ffffff]",
-  "bg-white"
-);
-
-function ToggleSwitch({ enabled, onChange, label, description }: ToggleSwitchProps): React.JSX.Element {
-  return (
-    <div className="flex items-start justify-between gap-4 py-3">
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-text-primary">{label}</p>
-        {description && <p className="text-xs text-text-secondary mt-0.5">{description}</p>}
-      </div>
-      <button
-        type="button"
-        onClick={onChange}
-        className={cn(TOGGLE_STYLES, "flex-shrink-0", enabled ? "bg-primary" : "bg-background")}
-        role="switch"
-        aria-checked={enabled}
-        aria-label={label}
-      >
-        <span className={cn(TOGGLE_THUMB, enabled ? "left-6" : "left-0.5")} />
-      </button>
-    </div>
-  );
-}
-
-function availabilityBadgeLabel(a: FreelancerAvailability): { text: string; className: string } {
-  if (a.vacationMode) {
-    return { text: "Vacation", className: "bg-amber-500/15 text-amber-800 border border-amber-500/30" };
-  }
-  if (a.availableForWork) {
-    return { text: "Available", className: "bg-success/10 text-success border border-success/25" };
-  }
-  return { text: "Unavailable", className: "bg-gray-200/80 text-text-secondary border border-gray-300" };
-}
-
-interface ProfileAvailabilityPreviewProps {
-  availability: FreelancerAvailability;
-  displayName: string;
-  avatarUrl?: string | null;
-}
-
-function ProfileAvailabilityPreview({
-  availability,
-  displayName,
-  avatarUrl,
-}: ProfileAvailabilityPreviewProps): React.JSX.Element {
-  const badge = availabilityBadgeLabel(availability);
-  const initials = displayName.trim().charAt(0).toUpperCase() || "?";
-
-  return (
-    <div
-      className={cn(
-        "p-5 rounded-2xl bg-white",
-        "shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]"
-      )}
-    >
-      <p className="text-xs font-medium text-text-secondary uppercase tracking-wide mb-3">Profile preview</p>
-      <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:text-left sm:items-start">
-        <div className="relative flex-shrink-0">
-          {avatarUrl && !avatarUrl.startsWith("blob:") ? (
-            <img
-              src={avatarUrl}
-              alt=""
-              className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
-            />
-          ) : (
-            <div
-              className={cn(
-                "w-16 h-16 rounded-full flex items-center justify-center",
-                "bg-primary/10 text-primary text-xl font-bold border-2 border-white shadow-md"
-              )}
-            >
-              {initials}
-            </div>
-          )}
-          <span
-            className={cn(
-              "absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-white",
-              availability.availableForWork && !availability.vacationMode ? "bg-green-500" : "bg-gray-400"
-            )}
-            title={badge.text}
-          />
-        </div>
-        <div className="min-w-0 flex-1 w-full">
-          <h3 className="font-bold text-text-primary truncate">{displayName}</h3>
-          <span
-            className={cn(
-              "inline-flex mt-2 px-2.5 py-0.5 rounded-lg text-xs font-semibold",
-              badge.className
-            )}
-          >
-            {badge.text}
-          </span>
-          <dl className="mt-3 space-y-1.5 text-xs text-text-secondary">
-            <div className="flex justify-between gap-2">
-              <dt>Hours / week</dt>
-              <dd className="font-medium text-text-primary">{availability.hoursPerWeek}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Timezone</dt>
-              <dd className="font-medium text-text-primary truncate max-w-[60%]" title={availability.timezone}>
-                {availability.timezone}
-              </dd>
-            </div>
-            {availability.availableFromDate && (
-              <div className="flex justify-between gap-2">
-                <dt>Available from</dt>
-                <dd className="font-medium text-text-primary">{availability.availableFromDate}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AvailabilitySettings(): React.JSX.Element {
-  const token = useAuthStore((s) => s.token);
-  const user = useAuthStore((s) => s.user);
+  const {
+    form,
+    patchForm,
+    isSaving,
+    isLoading,
+    saveError,
+    loadError,
+    dirty,
+    saveSucceeded,
+    avatarUrl,
+    hydrated,
+    token,
+    user,
+    setDirty,
+  } = useAvailabilityForm();
 
-  const [hydrated, setHydrated] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [saveSucceeded, setSaveSucceeded] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  const [form, setForm] = useState<FreelancerAvailability>(DEFAULT_FREELANCER_AVAILABILITY);
-  const [hoursInput, setHoursInput] = useState(String(DEFAULT_FREELANCER_AVAILABILITY.hoursPerWeek));
+  const [hoursInput, setHoursInput] = useState(String(form.hoursPerWeek));
   const [hoursError, setHoursError] = useState<string | undefined>();
+  const [prevHoursPerWeek, setPrevHoursPerWeek] = useState(form.hoursPerWeek);
+  const [prevDirty, setPrevDirty] = useState(dirty);
 
-  const [timezoneQuery, setTimezoneQuery] = useState("");
-  const [timezoneOpen, setTimezoneOpen] = useState(false);
-  const tzWrapRef = useRef<HTMLDivElement>(null);
+  // Sync hoursInput with external changes directly during render (no effect)
+  if (form.hoursPerWeek !== prevHoursPerWeek || (!dirty && prevDirty)) {
+    setPrevHoursPerWeek(form.hoursPerWeek);
+    setPrevDirty(dirty);
+    setHoursInput(String(form.hoursPerWeek));
+  } else if (dirty !== prevDirty) {
+    setPrevDirty(dirty);
+  }
 
   const browserTz = useMemo(() => getBrowserTimezone(), []);
   const minDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
-
   const timezones = useMemo(() => listIanaTimezones(), []);
-  const filteredTz = useMemo(() => {
-    const q = timezoneQuery.trim().toLowerCase();
-    if (!q) return timezones;
-    return timezones.filter((z) => z.toLowerCase().includes(q));
-  }, [timezones, timezoneQuery]);
 
   const displayName = user?.username?.trim() || "Your name";
-
-  useEffect(() => {
-    const u = user?.avatarUrl;
-    if (u && !u.startsWith("blob:")) setAvatarUrl(u);
-  }, [user?.avatarUrl]);
-
-  useEffect(() => {
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    function onDocClick(e: MouseEvent): void {
-      if (!tzWrapRef.current?.contains(e.target as Node)) setTimezoneOpen(false);
-    }
-    document.addEventListener("click", onDocClick);
-    return () => document.removeEventListener("click", onDocClick);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated || !token) {
-      if (hydrated) setIsLoading(false);
-      return;
-    }
-
-    const authToken = token;
-    let cancelled = false;
-
-    async function load(): Promise<void> {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const [data, profile] = await Promise.all([
-          getFreelancerAvailability(authToken),
-          getProfile(authToken).catch(() => null),
-        ]);
-
-        if (cancelled) return;
-
-        setForm(data);
-        setHoursInput(String(data.hoursPerWeek));
-        setDirty(false);
-        setSaveSucceeded(false);
-        setLoaded(true);
-
-        if (profile?.avatarUrl && !profile.avatarUrl.startsWith("blob:")) {
-          setAvatarUrl(profile.avatarUrl);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setLoadError(e instanceof Error ? e.message : "Could not load availability");
-          setLoaded(false);
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, token]);
-
-  const persist = useCallback(
-    async (next: FreelancerAvailability): Promise<void> => {
-      if (!token) return;
-      setIsSaving(true);
-      setSaveError(null);
-      try {
-        const saved = await updateFreelancerAvailability(token, next);
-        setForm(saved);
-        setHoursInput(String(saved.hoursPerWeek));
-        setDirty(false);
-        setSaveSucceeded(true);
-      } catch (e) {
-        setSaveError(e instanceof Error ? e.message : "Save failed");
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    [token]
-  );
-
-  useEffect(() => {
-    if (!loaded || !dirty || !token) return;
-
-    const t = window.setTimeout(() => {
-      void persist(form);
-    }, AUTOSAVE_MS);
-
-    return () => window.clearTimeout(t);
-  }, [form, dirty, loaded, token, persist]);
-
-  function patchForm(partial: Partial<FreelancerAvailability>): void {
-    setForm((prev) => ({ ...prev, ...partial }));
-    setDirty(true);
-  }
 
   function toggleWeekday(day: number): void {
     const set = new Set(form.preferredWeekdays);
@@ -315,9 +77,11 @@ export function AvailabilitySettings(): React.JSX.Element {
     setHoursError(undefined);
     const n = Number.parseInt(raw, 10);
     if (raw === "" || Number.isNaN(n)) {
+      setDirty(true);
       return;
     }
     if (n < MIN_HOURS || n > MAX_HOURS) {
+      setDirty(true);
       setHoursError(`Enter ${MIN_HOURS}–${MAX_HOURS}`);
       return;
     }
@@ -368,9 +132,6 @@ export function AvailabilitySettings(): React.JSX.Element {
               type="button"
               className={cn(PRIMARY_BUTTON, "mt-4 py-2 px-4 text-sm")}
               onClick={() => {
-                setLoaded(false);
-                setIsLoading(true);
-                setLoadError(null);
                 window.location.reload();
               }}
             >
@@ -401,7 +162,7 @@ export function AvailabilitySettings(): React.JSX.Element {
               {!isSaving && !saveError && dirty && (
                 <span className="text-amber-700">Pending changes…</span>
               )}
-              {!isSaving && !dirty && loaded && saveSucceeded && (
+              {!isSaving && !dirty && saveSucceeded && (
                 <span className="text-success flex items-center gap-1">
                   <Icon path={ICON_PATHS.check} size="sm" />
                   Saved
@@ -469,60 +230,12 @@ export function AvailabilitySettings(): React.JSX.Element {
             <p className="text-xs text-text-secondary break-all">{browserTz}</p>
           </div>
 
-          <div className="mt-6 space-y-2 relative" ref={tzWrapRef}>
-            <label className="block text-sm font-medium text-text-primary" htmlFor="tz-search">
-              Work timezone
-            </label>
-            <input
-              id="tz-search"
-              type="text"
-              role="combobox"
-              aria-expanded={timezoneOpen}
-              autoComplete="off"
-              value={timezoneOpen ? timezoneQuery : form.timezone}
-              onChange={(e) => {
-                setTimezoneQuery(e.target.value);
-                setTimezoneOpen(true);
-              }}
-              onFocus={() => {
-                setTimezoneQuery(form.timezone);
-                setTimezoneOpen(true);
-              }}
-              placeholder="Search timezone…"
-              className={NEUMORPHIC_INPUT}
+          <div className="mt-6">
+            <TimezoneCombobox
+              value={form.timezone}
+              onChange={(tz) => patchForm({ timezone: tz })}
+              timezones={timezones}
             />
-            {timezoneOpen && (
-              <ul
-                className={cn(
-                  "absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-xl py-1",
-                  "bg-white border border-gray-200 shadow-lg"
-                )}
-                role="listbox"
-              >
-                {filteredTz.length === 0 ? (
-                  <li className="px-3 py-2 text-sm text-text-secondary">No matches</li>
-                ) : (
-                  filteredTz.map((z) => (
-                    <li key={z}>
-                      <button
-                        type="button"
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-sm hover:bg-background",
-                          z === form.timezone && "bg-primary/10 font-medium"
-                        )}
-                        onClick={() => {
-                          patchForm({ timezone: z });
-                          setTimezoneQuery("");
-                          setTimezoneOpen(false);
-                        }}
-                      >
-                        {z}
-                      </button>
-                    </li>
-                  ))
-                )}
-              </ul>
-            )}
           </div>
 
           <div className="mt-6">
@@ -573,7 +286,7 @@ export function AvailabilitySettings(): React.JSX.Element {
       </div>
 
       <div className="lg:col-span-2 lg:sticky lg:top-6">
-        <ProfileAvailabilityPreview availability={form} displayName={displayName} avatarUrl={avatarUrl} />
+        <AvailabilityPreviewCard availability={form} displayName={displayName} avatarUrl={avatarUrl} />
       </div>
     </div>
   );
