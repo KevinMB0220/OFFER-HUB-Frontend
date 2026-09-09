@@ -27,6 +27,7 @@ interface BuyerActionPanelProps {
   onStartSecurePayment: () => void;
   onRequestRelease: () => void;
   onRequestDispute: () => void;
+  onRequestRefund: () => void;
 }
 
 /**
@@ -45,6 +46,7 @@ export function BuyerActionPanel({
   onStartSecurePayment,
   onRequestRelease,
   onRequestDispute,
+  onRequestRefund,
 }: BuyerActionPanelProps): React.JSX.Element {
   return (
     <div className={NEUMORPHIC_CARD}>
@@ -151,7 +153,7 @@ export function BuyerActionPanel({
           {isWorkCompleted && (
             <div className={cn("p-3 rounded-lg", NEUMORPHIC_INSET)}>
               <h3 className="text-xs font-medium text-text-secondary mb-2">Review</h3>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={onRequestRelease}
@@ -159,6 +161,14 @@ export function BuyerActionPanel({
                 >
                   <Icon path={ICON_PATHS.check} size="sm" />
                   <span>Release Funds</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onRequestRefund}
+                  className={cn(REVIEW_ACTION_BUTTON, "text-warning")}
+                >
+                  <Icon path={ICON_PATHS.currency} size="sm" />
+                  <span>Request Refund</span>
                 </button>
                 <button
                   type="button"

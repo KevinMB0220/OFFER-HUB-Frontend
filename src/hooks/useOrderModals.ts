@@ -26,6 +26,9 @@ export interface UseOrderModalsResult {
   isDisputeModalOpen: boolean;
   openDisputeModal: () => void;
   closeDisputeModal: () => void;
+  isRefundModalOpen: boolean;
+  openRefundModal: () => void;
+  closeRefundModal: () => void;
   isReviewModalOpen: boolean;
   /** Opens the review modal from the "Leave review" button. */
   openReviewModal: () => void;
@@ -57,12 +60,15 @@ export function useOrderModals({
 }: UseOrderModalsParams): UseOrderModalsResult {
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [isDisputeModalOpen, setIsDisputeModalOpen] = useState(false);
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
   const [reviewModalState, setReviewModalState] = useState<ReviewModalState>("auto");
 
   const openReleaseModal = useCallback(() => setIsReleaseModalOpen(true), []);
   const closeReleaseModal = useCallback(() => setIsReleaseModalOpen(false), []);
   const openDisputeModal = useCallback(() => setIsDisputeModalOpen(true), []);
   const closeDisputeModal = useCallback(() => setIsDisputeModalOpen(false), []);
+  const openRefundModal = useCallback(() => setIsRefundModalOpen(true), []);
+  const closeRefundModal = useCallback(() => setIsRefundModalOpen(false), []);
 
   const openReviewModal = useCallback(() => setReviewModalState("open"), []);
   const holdReviewModalOpen = useCallback(() => setReviewModalState("open"), []);
@@ -75,6 +81,9 @@ export function useOrderModals({
     isDisputeModalOpen,
     openDisputeModal,
     closeDisputeModal,
+    isRefundModalOpen,
+    openRefundModal,
+    closeRefundModal,
     isReviewModalOpen:
       reviewModalState === "open" || (reviewModalState === "auto" && shouldPromptForReview),
     openReviewModal,

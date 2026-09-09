@@ -18,6 +18,8 @@ interface ReleaseFundsModalProps {
   amount: string;
   /** Disables both buttons while the release request is in flight. */
   isProcessing: boolean;
+  /** Set by the caller after a failed attempt; cleared automatically on the next confirm. */
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -31,6 +33,7 @@ export function ReleaseFundsModal({
   isOpen,
   amount,
   isProcessing,
+  error,
   onCancel,
   onConfirm,
 }: ReleaseFundsModalProps): React.JSX.Element | null {
@@ -52,6 +55,11 @@ export function ReleaseFundsModal({
           <span className="font-semibold text-primary">${payout.toFixed(2)}</span> to the
           freelancer. This action cannot be undone.
         </p>
+        {error && (
+          <div role="alert" className="mb-4 rounded-xl bg-error/10 p-3 text-sm text-error">
+            {error}
+          </div>
+        )}
         <div className="flex gap-3">
           <button
             type="button"

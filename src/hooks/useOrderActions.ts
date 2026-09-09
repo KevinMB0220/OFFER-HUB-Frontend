@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   cancelOrder,
@@ -9,10 +9,16 @@ import {
   markOrderCompleted,
   openDispute,
   releaseFunds,
+  requestRefund,
   reserveFunds,
   type OpenDisputePayload,
 } from "@/lib/api/orders";
 import { submitOrderReview, submitReviewResponse } from "@/lib/api/reviews";
+import {
+  useEscrowSigningAction,
+  SigningCancelledError,
+  type UseEscrowSigningActionResult,
+} from "@/hooks/useEscrowSigningAction";
 import {
   ORDER_ACTION_MESSAGES,
   ORDER_CONFIRM_PROMPTS,
@@ -41,6 +47,8 @@ export interface UseOrderActionsParams {
   refetchOrder: () => Promise<void>;
   /** Called once funds are released, so the confirmation modal can close. */
   onFundsReleased?: () => void;
+  /** Called once a refund is requested, so the confirmation modal can close. */
+  onRefundRequested?: () => void;
   /** Called once a review is submitted, so its modal can stay up to confirm it. */
   onReviewSubmitted?: () => void;
 }
@@ -68,16 +76,37 @@ export interface UseOrderActionsResult {
   handleFundEscrow: () => Promise<void>;
   /** Buyer cancels the order, after a native confirmation prompt. */
   handleCancel: () => Promise<void>;
-  /** Buyer releases escrowed funds to the freelancer. */
+  /**
+   * Buyer releases escrowed funds to the freelancer. For an EXTERNAL wallet,
+   * walks the buyer through client-side signing (see `releaseSigning`)
+   * instead of the server-signed call.
+   */
   handleReleaseFunds: () => Promise<void>;
   /** Seller marks the work delivered, handing review back to the buyer. */
   handleMarkCompleted: () => Promise<void>;
-  /** Opens a dispute from whichever side the current user is on. Rethrows so the modal can show the failure inline. */
+  /**
+   * Opens a dispute from whichever side the current user is on. For an
+   * EXTERNAL wallet, first walks the buyer through client-side signing the
+   * on-chain dispute step (see `disputeSigning`), then records the dispute
+   * exactly as before. Rethrows so the modal can show the failure inline.
+   */
   handleOpenDispute: (reason: DisputeReason, description: string) => Promise<void>;
+  /**
+   * Buyer requests a direct refund (distinct from opening a dispute for
+   * admin review). For an EXTERNAL wallet, walks through client-side signing
+   * (see `refundSigning`) instead of the server-signed call.
+   */
+  handleRequestRefund: (reason: string) => Promise<void>;
   /** Buyer submits the order review. Rejects on failure — the modal renders the message. */
   handleSubmitReview: (rating: number, comment: string) => Promise<void>;
   /** Seller answers the review left on them. Rejects on failure. */
   handleSubmitReviewResponse: (content: string) => Promise<void>;
+  /** D2.1 signing state behind the release action — drives EscrowSigningModal/WalletConnectModal for it. */
+  releaseSigning: UseEscrowSigningActionResult;
+  /** D2.1 signing state behind the dispute action. */
+  disputeSigning: UseEscrowSigningActionResult;
+  /** D2.1 signing state behind the refund action. */
+  refundSigning: UseEscrowSigningActionResult;
 }
 
 function toMessage(cause: unknown, fallback: string): string {
@@ -90,9 +119,15 @@ function toMessage(cause: unknown, fallback: string): string {
  *
  * Two tiers of error handling, matching how the UI reports them:
  * - Actions driven by a button on the page report through the `error` banner.
- * - Actions driven by a modal (dispute, review, review response) reject so the
- *   modal can render the message next to the form the user is still looking at.
- *   The dispute action does both, since it also owns a banner-level success.
+ * - Actions driven by a modal (dispute, refund, review, review response)
+ *   reject so the modal can render the message next to the form the user is
+ *   still looking at.
+ *
+ * Release, dispute, and refund each additionally own a `useEscrowSigningAction`
+ * instance (D2.1): for an EXTERNAL wallet, the action walks through
+ * client-side signing instead of calling the server-signed endpoint directly.
+ * For an INVISIBLE wallet, `legacyAction` below *is* the exact call this hook
+ * made before D2.1 — unchanged.
  */
 export function useOrderActions({
   orderId,
@@ -103,6 +138,7 @@ export function useOrderActions({
   onReviewChange,
   refetchOrder,
   onFundsReleased,
+  onRefundRequested,
   onReviewSubmitted,
 }: UseOrderActionsParams): UseOrderActionsResult {
   const token = useAuthStore((state) => state.token);
@@ -182,24 +218,47 @@ export function useOrderActions({
     );
   }, [orderId, runOrderMutation]);
 
-  const handleReleaseFunds = useCallback(
-    () =>
+  // ---- D2.1: release ------------------------------------------------------
+
+  const releaseSigning = useEscrowSigningAction({
+    orderId,
+    operation: "release",
+    legacyAction: () =>
       runOrderMutation(
         (authToken) => releaseFunds(authToken, orderId),
         ORDER_ACTION_MESSAGES.releaseFunds,
         onFundsReleased
       ),
-    [onFundsReleased, orderId, runOrderMutation]
-  );
+    onConfirmed: () => {
+      setSuccess(ORDER_ACTION_MESSAGES.releaseFunds.success);
+      onFundsReleased?.();
+      void refetchOrder();
+    },
+  });
 
-  const handleMarkCompleted = useCallback(
-    () =>
-      runOrderMutation(
-        (authToken) => markOrderCompleted(authToken, orderId),
-        ORDER_ACTION_MESSAGES.markCompleted
-      ),
-    [orderId, runOrderMutation]
-  );
+  const handleReleaseFunds = useCallback(async (): Promise<void> => {
+    try {
+      await releaseSigning.run();
+    } catch {
+      // Surfaced via releaseSigning.inlineError (client-signing failures) or,
+      // for the legacy path, the shared error banner runOrderMutation already
+      // set — nothing further to do here. A cancelled wallet-connect guard
+      // needs no message at all.
+    }
+  }, [releaseSigning]);
+
+  // ---- D2.1: dispute --------------------------------------------------------
+
+  const disputeSigning = useEscrowSigningAction({
+    orderId,
+    operation: "dispute",
+    // INVISIBLE wallets never needed an on-chain step here before D2.1 —
+    // opening a dispute has always been a pure admin-review record.
+    legacyAction: async () => {},
+    // The admin dispute record is created by handleOpenDispute itself right
+    // after this resolves, for both wallet types — nothing to do here.
+    onConfirmed: () => {},
+  });
 
   const handleOpenDispute = useCallback(
     async (reason: DisputeReason, description: string): Promise<void> => {
@@ -209,6 +268,19 @@ export function useOrderActions({
       setError(null);
 
       try {
+        // The on-chain dispute step always disputes on the buyer's behalf
+        // (TrustlessWork's disputeResolver role requires it) regardless of
+        // who calls this — so only run it when the buyer is the one opening
+        // the dispute. A seller-initiated dispute skips straight to the
+        // admin record, same as before D2.1.
+        if (isBuyer) {
+          // For an EXTERNAL wallet, flags the escrow as disputed on-chain
+          // first — a precondition the platform's later resolution already
+          // tolerates being pre-done (TrustlessWork reports "already in
+          // dispute" and the server skips the step rather than failing).
+          await disputeSigning.run();
+        }
+
         const payload: OpenDisputePayload = {
           orderId,
           openedBy: isBuyer ? "BUYER" : "SELLER",
@@ -223,14 +295,64 @@ export function useOrderActions({
         // new status has to be read back.
         await refetchOrder();
       } catch (cause) {
-        setError(toMessage(cause, ORDER_ACTION_MESSAGES.openDispute.failure));
+        const message =
+          cause instanceof SigningCancelledError
+            ? "Signing cancelled — dispute not opened."
+            : toMessage(cause, ORDER_ACTION_MESSAGES.openDispute.failure);
+        setError(message);
         // Rethrown so OpenDisputeModal keeps the form open with the message.
-        throw cause;
+        throw new Error(message);
       } finally {
         setIsProcessing(false);
       }
     },
-    [isBuyer, orderId, refetchOrder, token]
+    [disputeSigning, isBuyer, orderId, refetchOrder, token]
+  );
+
+  // ---- D2.1: refund -----------------------------------------------------
+
+  // `legacyAction` below has no way to receive an argument (`run()` calls it
+  // with none), so the reason the buyer typed has to be stashed here first.
+  // The client-signing path has no reason field to send it to at all yet —
+  // see the note on `handleRequestRefund`.
+  const pendingRefundReason = useRef<string>("");
+
+  const refundSigning = useEscrowSigningAction({
+    orderId,
+    operation: "refund",
+    legacyAction: () =>
+      runOrderMutation(
+        (authToken) => requestRefund(authToken, orderId, pendingRefundReason.current),
+        ORDER_ACTION_MESSAGES.requestRefund,
+        onRefundRequested
+      ),
+    onConfirmed: () => {
+      setSuccess(ORDER_ACTION_MESSAGES.requestRefund.success);
+      onRefundRequested?.();
+      void refetchOrder();
+    },
+  });
+
+  const handleRequestRefund = useCallback(
+    async (reason: string): Promise<void> => {
+      pendingRefundReason.current = reason;
+      try {
+        await refundSigning.run();
+      } catch {
+        // Surfaced via refundSigning.inlineError, or the shared error banner
+        // for the legacy path — same as handleReleaseFunds.
+      }
+    },
+    [pendingRefundReason, refundSigning]
+  );
+
+  const handleMarkCompleted = useCallback(
+    () =>
+      runOrderMutation(
+        (authToken) => markOrderCompleted(authToken, orderId),
+        ORDER_ACTION_MESSAGES.markCompleted
+      ),
+    [orderId, runOrderMutation]
   );
 
   const handleSubmitReview = useCallback(
@@ -294,7 +416,11 @@ export function useOrderActions({
     handleReleaseFunds,
     handleMarkCompleted,
     handleOpenDispute,
+    handleRequestRefund,
     handleSubmitReview,
     handleSubmitReviewResponse,
+    releaseSigning,
+    disputeSigning,
+    refundSigning,
   };
 }
