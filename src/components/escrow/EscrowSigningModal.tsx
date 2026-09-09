@@ -242,12 +242,19 @@ export function EscrowSigningModal({
                     onClick={copyTransactionHash}
                     aria-label={copied ? "Transaction hash copied" : "Copy transaction hash"}
                     title={copied ? "Copied!" : "Copy"}
-                    className="p-1 rounded-lg text-text-secondary hover:text-primary transition-colors"
+                    className={cn(
+                      "p-1.5 rounded-lg shrink-0 bg-white",
+                      "shadow-[2px_2px_4px_#d1d5db,-2px_-2px_4px_#ffffff]",
+                      "hover:shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]",
+                      "active:shadow-[inset_3px_3px_6px_#d1d5db,inset_-3px_-3px_6px_#ffffff]",
+                      "transition-all duration-150",
+                      copied && "shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]"
+                    )}
                   >
                     <Icon
                       path={copied ? ICON_PATHS.check : ICON_PATHS.copy}
                       size="sm"
-                      className={copied ? "text-success" : undefined}
+                      className={copied ? "text-success" : "text-text-secondary"}
                     />
                   </button>
                 </div>
