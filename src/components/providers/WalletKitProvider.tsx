@@ -8,6 +8,7 @@ import { xBullModule } from "@creit.tech/stellar-wallets-kit/modules/xbull";
 import { STELLAR_NETWORK, type StellarNetworkName } from "@/config/wallet";
 import type { WalletKitContextValue } from "@/types/wallet.types";
 import { useWalletRehydration } from "@/hooks/use-wallet-rehydration";
+import { E2ETestWalletModule } from "@/lib/e2e/test-wallet-module";
 
 const networkPassphraseByName: Record<StellarNetworkName, Networks> = {
   testnet: Networks.TESTNET,
@@ -19,8 +20,18 @@ const activeNetworkPassphrase = networkPassphraseByName[STELLAR_NETWORK];
 /**
  * Wallets supported in T1 (SCF D1.1). SWK ships many more modules, but only these
  * three are part of the deliverable, so the list stays explicit.
+ *
+ * The E2E test module is appended only when explicitly built with
+ * NEXT_PUBLIC_E2E=true (see playwright.config.ts) — a real dev or production
+ * build never sets that var, so this branch is dead weight there, not a
+ * hidden extra wallet option a real user could ever pick.
  */
-const walletModules = [new FreighterModule(), new LobstrModule(), new xBullModule()];
+const walletModules = [
+  new FreighterModule(),
+  new LobstrModule(),
+  new xBullModule(),
+  ...(process.env.NEXT_PUBLIC_E2E === "true" ? [new E2ETestWalletModule()] : []),
+];
 
 /**
  * SWK v2 is a static singleton, so it is configured once at module evaluation rather

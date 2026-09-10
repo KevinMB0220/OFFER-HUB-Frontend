@@ -12,6 +12,12 @@ dist
 # Testing
 coverage
 
+# Playwright
+test-results
+playwright-report
+blob-report
+playwright/.cache
+
 # Environment files
 .env
 .env.local
