@@ -145,8 +145,8 @@ export function WalletConnectModal({
         aria-labelledby="wc-title"
         className={cn(
           "relative w-full max-w-sm outline-none",
-          "bg-white rounded-2xl p-6",
-          "shadow-[8px_8px_16px_#d1d5db,-8px_-8px_16px_#ffffff]",
+          "bg-white rounded-3xl p-6",
+          "shadow-2xl border border-border/40",
           "animate-scale-in",
         )}
       >
@@ -167,12 +167,9 @@ export function WalletConnectModal({
             disabled={isConnecting}
             aria-label="Close"
             className={cn(
-              "w-9 h-9 flex items-center justify-center rounded-xl shrink-0 ml-3",
-              "text-text-secondary bg-white",
-              "shadow-[3px_3px_6px_#d1d5db,-3px_-3px_6px_#ffffff]",
-              "hover:text-text-primary",
-              "active:shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]",
-              "transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed",
+              "w-8 h-8 flex items-center justify-center rounded-xl shrink-0 ml-3",
+              "text-text-secondary hover:text-text-primary hover:bg-background transition-colors",
+              "disabled:opacity-40 disabled:cursor-not-allowed",
             )}
           >
             <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
@@ -182,12 +179,12 @@ export function WalletConnectModal({
         </div>
 
         {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-5" />
+        <div className="h-px bg-border/40 mb-5" />
 
         {/* Content */}
         {linkedWallet ? (
           <div className="space-y-4">
-            <div className="rounded-xl p-4 shadow-[inset_3px_3px_6px_#d1d5db,inset_-3px_-3px_6px_#ffffff]">
+            <div className="rounded-2xl p-4 bg-background border border-border/40">
               <p className="text-xs font-medium text-text-secondary mb-1.5">Connected address</p>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
@@ -203,11 +200,8 @@ export function WalletConnectModal({
                 onClick={handleDisconnect}
                 disabled={isDisconnecting}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-medium",
-                  "text-text-secondary bg-white",
-                  "shadow-[3px_3px_6px_#d1d5db,-3px_-3px_6px_#ffffff]",
-                  "hover:text-error active:shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]",
-                  "transition-all duration-150 cursor-pointer",
+                  "flex-1 py-2.5 rounded-xl text-sm font-semibold",
+                  "text-text-secondary hover:text-error bg-background hover:bg-error/10 transition-colors cursor-pointer",
                   "disabled:opacity-60 disabled:cursor-not-allowed",
                 )}
               >
@@ -217,12 +211,8 @@ export function WalletConnectModal({
                 type="button"
                 onClick={onClose}
                 className={cn(
-                  "flex-1 py-2.5 rounded-xl text-sm font-medium text-white",
-                  "bg-primary",
-                  "shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]",
-                  "hover:bg-primary-hover hover:scale-[1.02]",
-                  "active:scale-[0.98]",
-                  "transition-all duration-150 cursor-pointer",
+                  "flex-1 py-2.5 rounded-xl text-sm font-semibold text-white",
+                  "bg-primary hover:bg-primary-hover active:scale-[0.98] transition-all cursor-pointer shadow-md",
                 )}
               >
                 Done
@@ -253,16 +243,13 @@ export function WalletConnectModal({
                         aria-busy={isThisConnecting}
                         aria-label={available ? `Connect ${wallet.name}` : `Install ${wallet.name}`}
                         className={cn(
-                          "w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-left",
-                          "bg-white transition-all duration-150 outline-none cursor-pointer",
+                          "w-full flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-left",
+                          "bg-background/80 hover:bg-background border border-border/50 hover:border-primary/40",
+                          "transition-all duration-150 outline-none cursor-pointer",
                           "focus-visible:ring-2 focus-visible:ring-primary/30",
                           available
-                            ? [
-                                "shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]",
-                                "hover:shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]",
-                                "active:shadow-[inset_3px_3px_6px_#d1d5db,inset_-3px_-3px_6px_#ffffff]",
-                              ]
-                            : "shadow-[2px_2px_4px_#d1d5db,-2px_-2px_4px_#ffffff] opacity-55",
+                            ? "hover:scale-[1.01] active:scale-[0.99]"
+                            : "opacity-60",
                           "disabled:cursor-not-allowed",
                         )}
                       >

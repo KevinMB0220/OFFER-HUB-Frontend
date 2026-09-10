@@ -12,7 +12,7 @@ const BalanceChartInner = dynamic(
       <div
         className={cn(
           "h-64 sm:h-72 rounded-2xl animate-pulse",
-          "bg-background shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]"
+          "bg-background shadow-[var(--shadow-neumorphic-inset-light)] dark:shadow-[var(--shadow-neumorphic-inset-dark)]"
         )}
       />
     ),
@@ -28,14 +28,19 @@ export function BalanceChart({ data, className }: BalanceChartProps): React.JSX.
   return (
     <div
       className={cn(
-        "p-6 rounded-3xl bg-white",
-        "shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]",
+        "p-6 sm:p-7 rounded-3xl bg-white dark:bg-slate-900",
+        "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+        "border-none min-w-0 overflow-hidden transition-all duration-300",
         className
       )}
     >
-      <h2 className="text-lg font-bold text-text-primary mb-1">Cash flow</h2>
-      <p className="text-sm text-text-secondary mb-4">Earnings and spending by period</p>
-      <BalanceChartInner data={data} />
+      <div className="mb-4">
+        <h2 className="text-lg font-bold text-text-primary">Earnings vs Withdrawals</h2>
+        <p className="text-xs text-text-secondary mt-0.5">Earnings and withdrawals comparison over time</p>
+      </div>
+      <div className="min-w-0 overflow-hidden">
+        <BalanceChartInner data={data} />
+      </div>
     </div>
   );
 }

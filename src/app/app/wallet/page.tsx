@@ -126,14 +126,16 @@ export default function WalletPage(): React.JSX.Element {
   if (!token) {
     return (
       <div className="max-w-lg mx-auto text-center py-16 px-4">
-        <Icon path={ICON_PATHS.lock} size="xl" className="mx-auto text-text-secondary mb-4" />
-        <h1 className="text-xl font-bold text-text-primary mb-2">Wallet</h1>
-        <p className="text-text-secondary mb-6">Sign in to view your balance and transactions.</p>
+        <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)] flex items-center justify-center text-text-secondary">
+          <Icon path={ICON_PATHS.lock} size="xl" />
+        </div>
+        <h1 className="text-2xl font-bold text-text-primary mb-2">Wallet Access</h1>
+        <p className="text-text-secondary mb-6">Sign in to your account to view your balance, ledger, and transactions.</p>
         <Link
           href="/login?redirect=/app/wallet"
           className={cn(
-            "inline-flex items-center justify-center px-6 py-3 rounded-xl font-medium",
-            "bg-primary text-white shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]"
+            "inline-flex items-center justify-center px-6 py-3 rounded-2xl font-bold text-sm",
+            "bg-primary text-white shadow-[var(--shadow-neumorphic-light)] hover:bg-primary-hover active:shadow-[var(--shadow-neumorphic-inset-light)] transition-all cursor-pointer"
           )}
         >
           Sign in
@@ -146,21 +148,23 @@ export default function WalletPage(): React.JSX.Element {
     if (error) {
       return (
         <div className="max-w-lg mx-auto text-center py-16 px-4">
-          <Icon path={ICON_PATHS.creditCard} size="xl" className="mx-auto text-text-secondary mb-4" />
-          <h1 className="text-xl font-bold text-text-primary mb-2">Wallet unavailable</h1>
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white dark:bg-slate-900 shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)] flex items-center justify-center text-error">
+            <Icon path={ICON_PATHS.creditCard} size="xl" />
+          </div>
+          <h1 className="text-2xl font-bold text-text-primary mb-2">Wallet Unavailable</h1>
           <p className="text-text-secondary mb-6">{error}</p>
           <button
             type="button"
             onClick={() => refresh()}
             disabled={isRefreshing}
             className={cn(
-              "inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium",
-              "bg-white text-text-primary shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]",
-              "disabled:opacity-60"
+              "inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-semibold",
+              "bg-white dark:bg-slate-900 text-text-primary shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+              "hover:text-primary active:shadow-[var(--shadow-neumorphic-inset-light)] transition-all cursor-pointer disabled:opacity-60"
             )}
           >
             <Icon path={ICON_PATHS.refresh} size="sm" className={cn(isRefreshing && "animate-spin")} />
-            Retry
+            Retry Connection
           </button>
         </div>
       );
@@ -172,29 +176,37 @@ export default function WalletPage(): React.JSX.Element {
   const spendPct = pctVsPrevious(data.monthly.currentMonthSpending, data.monthly.previousMonthSpending);
 
   return (
-    <div className="max-w-6xl mx-auto pb-10">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div className="w-full max-w-7xl mx-auto pb-12 transition-all duration-300 ease-in-out">
+      {/* Header Banner & Action Controls */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">Wallet</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-text-primary tracking-tight">
+            Wallet
+          </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Overview of your funds on OFFER HUB
+            Manage your balance, track earnings, and withdraw funds.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => refresh()}
             disabled={isRefreshing}
             className={cn(
-              "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium",
-              "bg-white text-text-primary shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]",
-              "disabled:opacity-60"
+              "inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer",
+              "bg-white dark:bg-slate-900 text-text-primary",
+              "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+              "hover:text-primary active:shadow-[var(--shadow-neumorphic-inset-light)] dark:active:shadow-[var(--shadow-neumorphic-inset-dark)]",
+              "disabled:opacity-60 disabled:cursor-not-allowed"
             )}
+            title="Refresh balance and on-chain assets"
           >
             <Icon
               path={ICON_PATHS.refresh}
               size="sm"
-              className={cn(isRefreshing && "animate-spin")}
+              className={cn("text-text-secondary", isRefreshing && "animate-spin")}
             />
             Refresh
           </button>
@@ -202,21 +214,24 @@ export default function WalletPage(): React.JSX.Element {
             type="button"
             onClick={() => setIsWithdrawOpen(true)}
             className={cn(
-              "inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium",
-              "bg-primary text-white shadow-[4px_4px_8px_#d1d5db,-4px_-4px_8px_#ffffff]"
+              "inline-flex items-center justify-center px-5 py-2.5 rounded-2xl text-sm font-bold text-white transition-all duration-200 cursor-pointer",
+              "bg-primary hover:bg-primary-hover",
+              "shadow-[var(--shadow-neumorphic-light)] active:shadow-[var(--shadow-neumorphic-inset-light)]"
             )}
           >
-            Withdraw
+            Withdraw Funds
           </button>
           <Link
             href="/app/wallet/transactions"
             className={cn(
-              "inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-sm font-medium",
-              "bg-background text-text-primary",
-              "shadow-[inset_2px_2px_4px_#d1d5db,inset_-2px_-2px_4px_#ffffff]"
+              "inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 cursor-pointer",
+              "bg-white dark:bg-slate-900 text-text-primary",
+              "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+              "hover:text-primary active:shadow-[var(--shadow-neumorphic-inset-light)] dark:active:shadow-[var(--shadow-neumorphic-inset-dark)]"
             )}
           >
-            View history
+            <Icon path={ICON_PATHS.clock} size="sm" />
+            View History
           </Link>
         </div>
       </div>
@@ -226,16 +241,17 @@ export default function WalletPage(): React.JSX.Element {
       </p>
 
       {error ? (
-        <div className="mb-4 p-3 rounded-xl bg-error/10 text-error text-sm" role="alert">
+        <div className="mb-4 p-4 rounded-2xl bg-error/10 border border-error/20 text-error text-sm font-medium" role="alert">
           {error}
         </div>
       ) : null}
       {withdrawSuccess ? (
-        <div className="mb-4 p-3 rounded-xl bg-success/10 text-success text-sm" role="status">
+        <div className="mb-4 p-4 rounded-2xl bg-success/10 border border-success/20 text-success text-sm font-medium" role="status">
           {withdrawSuccess}
         </div>
       ) : null}
 
+      {/* Master Balance Card */}
       <div className="mb-6">
         <BalanceCard
           available={data.balance.available}
@@ -257,16 +273,19 @@ export default function WalletPage(): React.JSX.Element {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {/* 3-Card Metric KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-6">
+        {/* Card 1: Earned this month */}
         <div
           className={cn(
-            "p-5 rounded-3xl bg-white",
-            "shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]"
+            "p-6 rounded-3xl bg-white",
+            "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+            "transition-all duration-300"
           )}
         >
           <p className="text-sm font-medium text-text-secondary">Earned this month</p>
           <p className="text-xs text-text-secondary mb-2">From completed orders</p>
-          <p className="text-2xl font-bold text-text-primary">
+          <p className="text-2xl sm:text-3xl font-bold text-text-primary">
             {new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: data.balance.currency,
@@ -275,25 +294,28 @@ export default function WalletPage(): React.JSX.Element {
           {earnPct !== null ? (
             <p
               className={cn(
-                "text-sm mt-2 font-medium",
+                "text-xs mt-2 font-medium",
                 earnPct >= 0 ? "text-success" : "text-error"
               )}
             >
               {formatPct(earnPct)} vs last month
             </p>
           ) : (
-            <p className="text-sm text-text-secondary mt-2">No comparison last month</p>
+            <p className="text-xs text-text-secondary mt-2">No comparison last month</p>
           )}
         </div>
+
+        {/* Card 2: Withdrawn this month */}
         <div
           className={cn(
-            "p-5 rounded-3xl bg-white",
-            "shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]"
+            "p-6 rounded-3xl bg-white",
+            "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+            "transition-all duration-300"
           )}
         >
           <p className="text-sm font-medium text-text-secondary">Withdrawn this month</p>
           <p className="text-xs text-text-secondary mb-2">Completed withdrawals</p>
-          <p className="text-2xl font-bold text-text-primary">
+          <p className="text-2xl sm:text-3xl font-bold text-text-primary">
             {new Intl.NumberFormat("en-US", {
               style: "currency",
               currency: data.balance.currency,
@@ -302,44 +324,47 @@ export default function WalletPage(): React.JSX.Element {
           {spendPct !== null ? (
             <p
               className={cn(
-                "text-sm mt-2 font-medium",
+                "text-xs mt-2 font-medium",
                 spendPct <= 0 ? "text-success" : "text-warning"
               )}
             >
               {formatPct(spendPct)} vs last month
             </p>
           ) : (
-            <p className="text-sm text-text-secondary mt-2">No comparison last month</p>
+            <p className="text-xs text-text-secondary mt-2">No comparison last month</p>
           )}
         </div>
-      </div>
 
-      <div
-        className={cn(
-          "p-5 rounded-3xl bg-white mb-6",
-          "shadow-[6px_6px_12px_#d1d5db,-6px_-6px_12px_#ffffff]"
-        )}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
-            <p className="text-sm font-medium text-text-secondary">Pending withdrawals</p>
-            <p className="text-xl font-bold text-text-primary mt-1">
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: data.balance.currency,
-              }).format(parseMoney(data.withdrawals.pendingTotal))}
-            </p>
-          </div>
-          <span className="text-sm text-text-secondary">
-            {data.withdrawals.pendingCount} open request
-            {data.withdrawals.pendingCount === 1 ? "" : "s"}
-          </span>
+        {/* Card 3: Pending withdrawals */}
+        <div
+          className={cn(
+            "p-6 rounded-3xl bg-white",
+            "shadow-[var(--shadow-neumorphic-light)] dark:shadow-[var(--shadow-neumorphic-dark)]",
+            "transition-all duration-300 sm:col-span-2 lg:col-span-1"
+          )}
+        >
+          <p className="text-sm font-medium text-text-secondary">Pending withdrawals</p>
+          <p className="text-xs text-text-secondary mb-2">
+            {data.withdrawals.pendingCount} open {data.withdrawals.pendingCount === 1 ? "request" : "requests"}
+          </p>
+          <p className="text-2xl sm:text-3xl font-bold text-text-primary">
+            {new Intl.NumberFormat("en-US", {
+              style: "currency",
+              currency: data.balance.currency,
+            }).format(parseMoney(data.withdrawals.pendingTotal))}
+          </p>
+          <p className="text-xs text-text-secondary mt-2">Currently in processing queue</p>
         </div>
       </div>
 
+      {/* Chart & Recent Transactions Grid (Protected with min-w-0 for smooth sidebar animations) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mb-6">
-        <BalanceChart data={data.chart} />
-        <RecentTransactions transactions={data.recentTransactions} />
+        <div className="min-w-0">
+          <BalanceChart data={data.chart} />
+        </div>
+        <div className="min-w-0">
+          <RecentTransactions transactions={data.recentTransactions} />
+        </div>
       </div>
 
       <p className="text-xs text-text-secondary text-center">
