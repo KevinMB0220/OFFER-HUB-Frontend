@@ -142,7 +142,7 @@ export default function OrderDetailPage(): React.JSX.Element {
         />
       )}
 
-      {roles.isSeller && (order.status === "RELEASED" || order.status === "CLOSED") && (
+      {roles.isSeller && roles.isOrderComplete && (
         <PayoutStatusCard orderId={order.id} />
       )}
 
