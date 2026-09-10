@@ -92,11 +92,22 @@ describe("BankAccountSelector", () => {
     expect(screen.getByText("Default")).toBeInTheDocument();
   });
 
-  it("shows an empty state when there are no accounts yet", async () => {
+  it("shows a friendly empty state explaining why a bank account is needed", async () => {
     mockListBankAccounts.mockResolvedValue([]);
     render(<BankAccountSelector />);
 
-    await screen.findByText("You have not added a bank account yet.");
+    await screen.findByText("No bank accounts yet");
+    expect(
+      screen.getByText("Add a bank account so you can receive your payouts once a client releases funds.")
+    ).toBeInTheDocument();
+  });
+
+  it("uses a custom title when the caller names the section (e.g. settings' Payment Accounts)", async () => {
+    mockListBankAccounts.mockResolvedValue([]);
+    render(<BankAccountSelector title="Payment Accounts" />);
+
+    await screen.findByText("Payment Accounts");
+    expect(screen.queryByText("Bank accounts")).not.toBeInTheDocument();
   });
 
   it("lets the caller pick a non-default account for a payout via onSelect", async () => {
@@ -124,6 +135,7 @@ describe("BankAccountSelector", () => {
 
     await waitFor(() => expect(mockSetDefaultBankAccount).toHaveBeenCalledWith("jwt-token", "ba_secondary"));
     expect(await screen.findByText("Default")).toBeInTheDocument();
+    expect(await screen.findByText("Default payout account updated")).toBeInTheDocument();
   });
 
   it("requires confirmation before deleting an account", async () => {
@@ -140,17 +152,19 @@ describe("BankAccountSelector", () => {
     await user.click(screen.getByRole("button", { name: "Delete account" }));
     await waitFor(() => expect(mockDeleteBankAccount).toHaveBeenCalledWith("jwt-token", "ba_default"));
     await waitFor(() => expect(screen.queryByText("BBVA")).not.toBeInTheDocument());
+    expect(await screen.findByText("Bank account deleted")).toBeInTheDocument();
   });
 
-  it("adds a new account through the modal and shows it in the list", async () => {
+  it("adds a new account through the modal, shows it in the list, and confirms via toast", async () => {
     mockListBankAccounts.mockResolvedValue([]);
     const user = userEvent.setup();
     render(<BankAccountSelector />);
 
-    await screen.findByText("You have not added a bank account yet.");
+    await screen.findByText("No bank accounts yet");
     await user.click(screen.getByRole("button", { name: "Add new account" }));
     await user.click(screen.getByRole("button", { name: "mock-add-account" }));
 
     expect(await screen.findByText("Bancolombia")).toBeInTheDocument();
+    expect(screen.getByText("Bank account added")).toBeInTheDocument();
   });
 });

@@ -8,7 +8,9 @@ import { Icon, ICON_PATHS, LoadingSpinner } from "@/components/ui/Icon";
 import { NEUMORPHIC_CARD, PRIMARY_BUTTON, DANGER_BUTTON } from "@/lib/styles";
 import { ClaimWalletCard } from "@/components/settings/ClaimWalletCard";
 import { WalletManagementCard } from "@/components/settings/WalletManagementCard";
+import { BankAccountSelector } from "@/components/bank-accounts/BankAccountSelector";
 import { useOnboardingStore } from "@/stores/onboarding-store";
+import { useAuthStore } from "@/stores/auth-store";
 
 interface NotificationSettings {
   emailNotifications: boolean;
@@ -95,6 +97,8 @@ export default function SettingsPage(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const { hasCompletedTour, resetTour } = useOnboardingStore();
+  const userType = useAuthStore((state) => state.user?.type);
+  const canReceivePayouts = userType === "SELLER" || userType === "BOTH";
 
   function handleRestartTour(): void {
     resetTour();
@@ -375,6 +379,9 @@ export default function SettingsPage(): React.JSX.Element {
       <ClaimWalletCard />
 
       <WalletManagementCard />
+
+      {/* Only sellers ever get paid out, so buyers with no seller side never see a section asking them to register a payout destination. */}
+      {canReceivePayouts && <BankAccountSelector title="Payment Accounts" />}
 
       <div className={cn(NEUMORPHIC_CARD, "border border-error/20")}>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

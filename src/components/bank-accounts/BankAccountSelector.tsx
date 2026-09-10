@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { NEUMORPHIC_CARD, NEUMORPHIC_INSET, ACTION_BUTTON_DEFAULT, ACTION_BUTTON_DANGER } from "@/lib/styles";
 import { Icon, ICON_PATHS, LoadingSpinner } from "@/components/ui/Icon";
 import { ConfirmationModal } from "@/components/ui/ConfirmationModal";
+import { Toast } from "@/components/ui/Toast";
 import { useAuthStore } from "@/stores/auth-store";
 import {
   listBankAccounts,
@@ -188,12 +189,15 @@ export interface BankAccountSelectorProps {
   selectedId?: string | null;
   /** Present only in picker contexts (e.g. order completion) — omit to use this purely for management. */
   onSelect?: (account: BankAccount) => void;
+  /** Card heading — callers embedding this in a named section (e.g. settings' "Payment Accounts") override the generic default. */
+  title?: string;
   className?: string;
 }
 
 export function BankAccountSelector({
   selectedId,
   onSelect,
+  title = "Bank accounts",
   className,
 }: BankAccountSelectorProps): React.JSX.Element {
   const token = useAuthStore((state) => state.token);
@@ -204,6 +208,7 @@ export function BankAccountSelector({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<BankAccount | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -232,6 +237,7 @@ export function BankAccountSelector({
       return [account, ...next];
     });
     setIsAddModalOpen(false);
+    setToast({ type: "success", message: "Bank account added" });
   }
 
   async function handleSetDefault(account: BankAccount) {
@@ -243,8 +249,11 @@ export function BankAccountSelector({
       setAccounts((prev) =>
         (prev ?? []).map((existing) => ({ ...existing, isDefault: existing.id === updated.id }))
       );
+      setToast({ type: "success", message: "Default payout account updated" });
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not set this account as default.");
+      const message = error instanceof Error ? error.message : "Could not set this account as default.";
+      setActionError(message);
+      setToast({ type: "error", message });
     } finally {
       setBusyId(null);
     }
@@ -259,8 +268,11 @@ export function BankAccountSelector({
       await deleteBankAccount(token, account.id);
       setAccounts((prev) => (prev ?? []).filter((existing) => existing.id !== account.id));
       setPendingDelete(null);
+      setToast({ type: "success", message: "Bank account deleted" });
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "Could not delete this account.");
+      const message = error instanceof Error ? error.message : "Could not delete this account.";
+      setActionError(message);
+      setToast({ type: "error", message });
     } finally {
       setBusyId(null);
     }
@@ -271,7 +283,7 @@ export function BankAccountSelector({
       <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
         <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
           <Icon path={ICON_PATHS.creditCard} size="md" className="text-primary" />
-          Bank accounts
+          {title}
         </h2>
         <button
           type="button"
@@ -294,7 +306,13 @@ export function BankAccountSelector({
           Loading bank accounts...
         </div>
       ) : accounts.length === 0 ? (
-        <p className="text-sm text-text-secondary">You have not added a bank account yet.</p>
+        <div className={cn(NEUMORPHIC_INSET, "rounded-2xl p-6 text-center")}>
+          <Icon path={ICON_PATHS.creditCard} size="lg" className="mx-auto mb-2 text-text-secondary" />
+          <p className="text-sm font-medium text-text-primary">No bank accounts yet</p>
+          <p className="mt-1 text-sm text-text-secondary">
+            Add a bank account so you can receive your payouts once a client releases funds.
+          </p>
+        </div>
       ) : (
         <div className="space-y-3">
           {accounts.map((account) => (
@@ -337,6 +355,8 @@ export function BankAccountSelector({
         variant="danger"
         isLoading={pendingDelete !== null && busyId === pendingDelete.id}
       />
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   );
 }
