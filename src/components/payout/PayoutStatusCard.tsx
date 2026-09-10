@@ -103,21 +103,23 @@ export interface PayoutStatusCardProps {
   className?: string;
 }
 
+type CardState =
+  | { kind: "loading" }
+  | { kind: "waiting" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; payout: Payout };
+
 /**
  * Tracks a released order's BlindPay off-ramp from pending through to the
  * fiat deposit, polling every 5s while it's still in flight.
  *
- * Renders nothing until the first successful fetch (a 404 just means the
- * off-ramp job hasn't created the row yet, which is expected for a moment
- * right after release) — the order detail page only mounts this once the
- * order has actually been released, so there is nothing worth showing
- * before that first response comes back.
+ * A 404 means the off-ramp job hasn't created the Payout row yet — expected
+ * for a moment right after release — so it renders a "preparing" state
+ * rather than nothing, and keeps polling silently underneath.
  */
-export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps): React.JSX.Element | null {
+export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps): React.JSX.Element {
   const token = useAuthStore((state) => state.token);
-  const [payout, setPayout] = useState<Payout | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [state, setState] = useState<CardState>({ kind: "loading" });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -135,9 +137,7 @@ export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps):
       try {
         const result = await getPayoutStatus(token as string, orderId);
         if (cancelled) return;
-        setPayout(result);
-        setError(null);
-        setIsInitialLoad(false);
+        setState({ kind: "ready", payout: result });
         if (result.status === "COMPLETED" || result.status === "FAILED") {
           stopPolling();
         }
@@ -146,11 +146,13 @@ export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps):
         const status = (err as PayoutApiError).status;
         if (status === 404) {
           // Off-ramp job hasn't created the row yet — keep polling silently.
-          setIsInitialLoad(false);
+          setState({ kind: "waiting" });
           return;
         }
-        setError(err instanceof Error ? err.message : "Could not load payout status.");
-        setIsInitialLoad(false);
+        setState({
+          kind: "error",
+          message: err instanceof Error ? err.message : "Could not load payout status.",
+        });
         stopPolling();
       }
     }
@@ -164,18 +166,18 @@ export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps):
     };
   }, [token, orderId]);
 
-  if (isInitialLoad) {
+  if (state.kind === "loading" || state.kind === "waiting") {
     return (
       <div className={cn(NEUMORPHIC_CARD, className)}>
         <div role="status" className="flex items-center justify-center gap-2.5 py-6 text-sm text-text-secondary">
           <LoadingSpinner size="sm" />
-          Loading payout status...
+          {state.kind === "loading" ? "Loading payout status..." : "Preparing your payout..."}
         </div>
       </div>
     );
   }
 
-  if (error) {
+  if (state.kind === "error") {
     return (
       <div className={cn(NEUMORPHIC_CARD, className)}>
         <h2 className="text-lg font-semibold text-text-primary mb-2 flex items-center gap-2">
@@ -183,13 +185,13 @@ export function PayoutStatusCard({ orderId, className }: PayoutStatusCardProps):
           Payout status
         </h2>
         <p role="alert" className="text-sm text-error">
-          {error}
+          {state.message}
         </p>
       </div>
     );
   }
 
-  if (!payout) return null;
+  const { payout } = state;
 
   return (
     <div className={cn(NEUMORPHIC_CARD, className)}>

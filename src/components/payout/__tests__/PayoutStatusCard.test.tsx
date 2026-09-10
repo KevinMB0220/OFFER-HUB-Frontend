@@ -51,15 +51,19 @@ describe("PayoutStatusCard", () => {
     expect(screen.getByText("Pending")).toBeInTheDocument();
   });
 
-  it("keeps polling silently while the payout row does not exist yet (404)", async () => {
+  it("shows a visible 'preparing' state (not a blank gap) while the payout row does not exist yet (404), then keeps polling", async () => {
     const notFound = Object.assign(new Error("No payout found"), { status: 404 });
     mockGetPayoutStatus.mockRejectedValueOnce(notFound).mockResolvedValueOnce(PENDING_PAYOUT);
 
-    render(<PayoutStatusCard orderId="order_1" />);
+    const { container } = render(<PayoutStatusCard orderId="order_1" />);
 
     await act(async () => {
       await Promise.resolve();
     });
+    // The card must render *something* here — a 404 used to make the
+    // component return null, leaving a blank gap that read as broken.
+    expect(container).not.toBeEmptyDOMElement();
+    expect(screen.getByText("Preparing your payout...")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(mockGetPayoutStatus).toHaveBeenCalledTimes(1);
 
