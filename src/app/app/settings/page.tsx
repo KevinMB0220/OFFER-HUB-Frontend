@@ -10,6 +10,7 @@ import { NEUMORPHIC_CARD, PRIMARY_BUTTON, DANGER_BUTTON } from "@/lib/styles";
 import { ClaimWalletCard } from "@/components/settings/ClaimWalletCard";
 import { WalletManagementCard } from "@/components/settings/WalletManagementCard";
 import { BankAccountSelector } from "@/components/bank-accounts/BankAccountSelector";
+import { KycStatusCard } from "@/components/kyc/KycStatusCard";
 import { useOnboardingStore } from "@/stores/onboarding-store";
 import { useAuthStore } from "@/stores/auth-store";
 
@@ -335,6 +336,7 @@ export default function SettingsPage(): React.JSX.Element {
       <WalletManagementCard />
 
       {/* Only sellers ever get paid out, so buyers with no seller side never see a section asking them to register a payout destination. */}
+      {canReceivePayouts && <KycStatusCard />}
       {canReceivePayouts && <BankAccountSelector title="Payment Accounts" />}
 
       <div className={cn(NEUMORPHIC_CARD, "border border-error/20")}>
