@@ -4,7 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit";
 import { useAuthStore } from "@/stores/auth-store";
 import { useWalletKit } from "@/hooks/use-wallet-kit";
-import { useEscrowSigning, type EscrowSigningState } from "@/hooks/useEscrowSigning";
+import {
+  useEscrowSigning,
+  type EscrowSigningState,
+  type EscrowSigningError,
+} from "@/hooks/useEscrowSigning";
 import type { EscrowOperation } from "@/lib/api/escrow";
 
 /** Thrown by `run()` when the user dismisses the wallet-connect guard without connecting. Not a failure — callers should treat it as "nothing happened" rather than showing an error. */
@@ -44,15 +48,34 @@ export interface UseEscrowSigningActionResult {
    * once the resumed sign completes.
    */
   run: () => Promise<void>;
-  /** True for building/awaiting_signature/submitting — render EscrowSigningModal while this holds. */
+  /**
+   * True for building/awaiting_signature/submitting/confirmed/error — render
+   * EscrowSigningModal while this holds. Stays true through the two terminal
+   * states so the modal's own confirmed/error screens (transaction hash +
+   * Done, or the error copy + Retry/Cancel) actually get to show, instead of
+   * closing the instant the on-chain step settles.
+   */
   isSigningModalOpen: boolean;
   signingState: EscrowSigningState;
+  /** Pass straight through to EscrowSigningModal's `error` prop — its own `errorCopy()` renders the friendly title/message per code. */
+  signingError: EscrowSigningError | null;
+  /** Pass straight through to EscrowSigningModal's `transactionHash` prop, shown on its confirmed screen. */
+  transactionHash: string | null;
   /** Set once on an `error` state; the action modal is expected to show this inline and clear it on retry. */
   inlineError: string | null;
   clearInlineError: () => void;
   isWalletConnectOpen: boolean;
   closeWalletConnect: () => void;
   onWalletConnected: () => void;
+  /**
+   * Returns signing to `idle`, which is what actually closes
+   * EscrowSigningModal (see `isSigningModalOpen`) — wire this into the
+   * modal's `onClose` alongside whatever closes the caller's own confirm
+   * dialog. `run()` has already resolved/rejected and `onConfirmed` has
+   * already fired by the time confirmed/error is reached, so this is purely
+   * about dismissing the modal, not re-running any side effect.
+   */
+  dismissSigningModal: () => void;
 }
 
 /**
@@ -142,34 +165,50 @@ export function useEscrowSigningAction({
       onConfirmed();
       pendingSettlers.current?.resolve();
       pendingSettlers.current = null;
-      signing.reset();
     } else if (signing.state === "error") {
       const message = signing.error?.message ?? "Something went wrong. Please try again.";
       setInlineError(message);
       pendingSettlers.current?.reject(new Error(message));
       pendingSettlers.current = null;
-      signing.reset();
     }
-    // Only the transition into confirmed/error matters here — signing.reset()
-    // intentionally changes signing.state again inside this same effect
-    // without re-triggering it, since state is the only reactive dependency.
+    // `run()`'s caller (and the success/error banners) settle here, on the
+    // transition into confirmed/error, same as before. What changed is that
+    // `signing.reset()` no longer fires in this same tick — see
+    // `dismissSigningModal` below for why.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signing.state]);
+
+  // `signing.reset()` used to run inside the effect above, the instant
+  // confirmed/error was reached. That made `isSigningModalOpen` (below) go
+  // false again in the same tick, which closed EscrowSigningModal before it
+  // ever painted its confirmed/error screen — the transaction-hash-and-Done
+  // and the Retry/Cancel screens were effectively dead code. Resetting only
+  // once the user actually dismisses the modal (Done, Cancel, X, Escape, or a
+  // Retry re-arming it via a fresh `sign()` call) is what lets those screens
+  // show at all.
+  const dismissSigningModal = useCallback(() => {
+    signing.reset();
+  }, [signing]);
 
   const isSigningModalOpen =
     signing.state === "building" ||
     signing.state === "awaiting_signature" ||
-    signing.state === "submitting";
+    signing.state === "submitting" ||
+    signing.state === "confirmed" ||
+    signing.state === "error";
 
   return {
     run,
     isSigningModalOpen,
     signingState: signing.state,
+    signingError: signing.error,
+    transactionHash: signing.transactionHash,
     inlineError,
     clearInlineError,
     isWalletConnectOpen,
     closeWalletConnect,
     onWalletConnected,
+    dismissSigningModal,
   };
 }
 
