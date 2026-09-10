@@ -1,4 +1,4 @@
-import type { Order, CreateOrderPayload, Milestone } from "@/types/order.types";
+import type { Order, CreateOrderPayload, Milestone, Payout } from "@/types/order.types";
 import { API_URL } from "@/config/api";
 
 export async function createOrder(token: string, payload: CreateOrderPayload): Promise<Order> {
@@ -136,6 +136,33 @@ export async function getMilestones(token: string, orderId: string): Promise<Mil
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error?.message || "Failed to fetch milestones");
+  }
+
+  const data = await response.json();
+  return data.data || data;
+}
+
+/** Carries the HTTP status so callers can tell "no payout yet" (404, keep polling) from a real failure. */
+export type PayoutApiError = Error & { status?: number };
+
+/**
+ * The BlindPay off-ramp status for an order's released escrow.
+ * GET /orders/:id/payout
+ *
+ * 404s (as a `PayoutApiError` with `status: 404`) until the escrow is
+ * released and the off-ramp job creates the Payout row — expected right
+ * after release, not necessarily a failure.
+ */
+export async function getPayoutStatus(token: string, orderId: string): Promise<Payout> {
+  const response = await fetch(`${API_URL}/orders/${orderId}/payout`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    const apiError: PayoutApiError = new Error(error?.error?.message || "Failed to fetch payout status");
+    apiError.status = response.status;
+    throw apiError;
   }
 
   const data = await response.json();

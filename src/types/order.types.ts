@@ -64,6 +64,30 @@ export interface Milestone {
   completedAt?: string;
 }
 
+export type PayoutStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+/** BlindPay off-ramp for a released escrow. Mirrors the `Payout` Prisma model. */
+export interface Payout {
+  id: string;
+  userId: string;
+  orderId: string;
+  bankAccountId: string;
+  /** Set once BlindPay accepts the payout; null until then. */
+  blindpayPayoutId: string | null;
+  /** `"{country}/{rail}"`, e.g. `"MX/SPEI_BITSO"` — matches a rail in `SUPPORTED_CORRIDORS`. */
+  corridor: string;
+  status: PayoutStatus;
+  usdcAmount: string;
+  /** Set once BlindPay quotes/settles the payout; null before that. */
+  fiatAmount: string | null;
+  fiatCurrency: string;
+  exchangeRate: string | null;
+  /** Set only when `status` is `FAILED`. */
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateOrderPayload {
   buyer_id: string;
   seller_id: string;

@@ -23,6 +23,7 @@ import { OrderSummaryHeader } from "@/components/orders/OrderSummaryHeader";
 import { ReleaseFundsModal } from "@/components/orders/ReleaseFundsModal";
 import { RefundModal } from "@/components/orders/RefundModal";
 import { SellerStatusPanel } from "@/components/orders/SellerStatusPanel";
+import { PayoutStatusCard } from "@/components/payout/PayoutStatusCard";
 import { EscrowSigningModal } from "@/components/escrow/EscrowSigningModal";
 import { WalletConnectModal } from "@/components/wallet/WalletConnectModal";
 import { currentWalletName } from "@/hooks/useEscrowSigningAction";
@@ -139,6 +140,10 @@ export default function OrderDetailPage(): React.JSX.Element {
           onMarkCompleted={actions.handleMarkCompleted}
           onRequestDispute={modals.openDisputeModal}
         />
+      )}
+
+      {roles.isSeller && roles.isOrderComplete && (
+        <PayoutStatusCard orderId={order.id} />
       )}
 
       {order.escrow && (
