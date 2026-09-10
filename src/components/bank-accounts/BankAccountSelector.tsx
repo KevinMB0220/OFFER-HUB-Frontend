@@ -49,7 +49,11 @@ function AddBankAccountModal({ isOpen, onClose, onAdded }: AddBankAccountModalPr
   if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+    // items-start, not items-center: centering a flex child taller than the
+    // viewport makes its top overflow unreachable by scroll in every major
+    // browser. Anchoring to the top keeps tall forms (many rail-specific
+    // detail fields) fully scrollable — same fix as KycStatusCard's modal.
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto">
       <button
         type="button"
         className="fixed inset-0 bg-black/30 backdrop-blur-sm"
