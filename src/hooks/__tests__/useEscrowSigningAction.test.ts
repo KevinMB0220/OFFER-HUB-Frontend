@@ -95,7 +95,7 @@ describe("useEscrowSigningAction — EXTERNAL wallet, connected", () => {
     expect(legacyAction).not.toHaveBeenCalled();
   });
 
-  it("reports isSigningModalOpen only for building/awaiting_signature/submitting", () => {
+  it("reports isSigningModalOpen for every in-flight and terminal state, only false when idle", () => {
     const { result, rerender } = renderHook(() =>
       useEscrowSigningAction({ orderId: ORDER_ID, operation: "release", legacyAction: vi.fn(), onConfirmed: vi.fn() })
     );
@@ -113,12 +113,20 @@ describe("useEscrowSigningAction — EXTERNAL wallet, connected", () => {
     rerender();
     expect(result.current.isSigningModalOpen).toBe(true);
 
+    // confirmed/error stay open too — EscrowSigningModal owns its own
+    // confirmed/error screens (transaction hash + Done, error copy +
+    // Retry/Cancel), and closing here the instant either is reached used to
+    // make those screens unreachable in practice (see dismissSigningModal).
     setSigningState("confirmed");
     rerender();
-    expect(result.current.isSigningModalOpen).toBe(false);
+    expect(result.current.isSigningModalOpen).toBe(true);
+
+    setSigningState("error", { code: "USER_REJECTED", message: "rejected" });
+    rerender();
+    expect(result.current.isSigningModalOpen).toBe(true);
   });
 
-  it("calls onConfirmed and resolves run() when the state transitions to confirmed", async () => {
+  it("calls onConfirmed and resolves run() when the state transitions to confirmed, without resetting on its own", async () => {
     const onConfirmed = vi.fn();
     const { result, rerender } = renderHook(() =>
       useEscrowSigningAction({ orderId: ORDER_ID, operation: "release", legacyAction: vi.fn(), onConfirmed })
@@ -134,7 +142,32 @@ describe("useEscrowSigningAction — EXTERNAL wallet, connected", () => {
 
     await expect(runPromise).resolves.toBeUndefined();
     expect(onConfirmed).toHaveBeenCalledOnce();
-    expect(mockReset).toHaveBeenCalled();
+    // The modal (via isSigningModalOpen) stays open on its own confirmed
+    // screen until the user dismisses it — reset must wait for that.
+    expect(mockReset).not.toHaveBeenCalled();
+    expect(result.current.isSigningModalOpen).toBe(true);
+  });
+
+  it("dismissSigningModal() is what actually resets signing back to idle", () => {
+    const { result } = renderHook(() =>
+      useEscrowSigningAction({ orderId: ORDER_ID, operation: "release", legacyAction: vi.fn(), onConfirmed: vi.fn() })
+    );
+
+    act(() => {
+      result.current.dismissSigningModal();
+    });
+
+    expect(mockReset).toHaveBeenCalledOnce();
+  });
+
+  it("passes signingError and transactionHash straight through from useEscrowSigning", () => {
+    setSigningState("error", { code: "XDR_EXPIRED", message: "expired" });
+    const { result } = renderHook(() =>
+      useEscrowSigningAction({ orderId: ORDER_ID, operation: "release", legacyAction: vi.fn(), onConfirmed: vi.fn() })
+    );
+
+    expect(result.current.signingError).toEqual({ code: "XDR_EXPIRED", message: "expired" });
+    expect(result.current.transactionHash).toBeNull();
   });
 
   it("sets inlineError and rejects run() when the state transitions to error", async () => {

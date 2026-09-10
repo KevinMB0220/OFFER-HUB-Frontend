@@ -183,31 +183,40 @@ export default function OrderDetailPage(): React.JSX.Element {
       <EscrowSigningModal
         isOpen={actions.releaseSigning.isSigningModalOpen}
         state={actions.releaseSigning.signingState}
-        error={null}
-        transactionHash={null}
+        error={actions.releaseSigning.signingError}
+        transactionHash={actions.releaseSigning.transactionHash}
         walletName={currentWalletName()}
         onRetry={() => void actions.handleReleaseFunds()}
-        onClose={modals.closeReleaseModal}
+        onClose={() => {
+          actions.releaseSigning.dismissSigningModal();
+          modals.closeReleaseModal();
+        }}
       />
 
       <EscrowSigningModal
         isOpen={actions.disputeSigning.isSigningModalOpen}
         state={actions.disputeSigning.signingState}
-        error={null}
-        transactionHash={null}
+        error={actions.disputeSigning.signingError}
+        transactionHash={actions.disputeSigning.transactionHash}
         walletName={currentWalletName()}
         onRetry={() => void actions.handleOpenDispute("OTHER", "")}
-        onClose={modals.closeDisputeModal}
+        onClose={() => {
+          actions.disputeSigning.dismissSigningModal();
+          modals.closeDisputeModal();
+        }}
       />
 
       <EscrowSigningModal
         isOpen={actions.refundSigning.isSigningModalOpen}
         state={actions.refundSigning.signingState}
-        error={null}
-        transactionHash={null}
+        error={actions.refundSigning.signingError}
+        transactionHash={actions.refundSigning.transactionHash}
         walletName={currentWalletName()}
         onRetry={() => void actions.handleRequestRefund("")}
-        onClose={modals.closeRefundModal}
+        onClose={() => {
+          actions.refundSigning.dismissSigningModal();
+          modals.closeRefundModal();
+        }}
       />
 
       <WalletConnectModal
