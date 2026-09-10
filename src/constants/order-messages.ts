@@ -41,6 +41,10 @@ export const ORDER_ACTION_MESSAGES = {
     success: "Dispute opened successfully. Our team will review and contact you soon.",
     failure: "Failed to open dispute",
   },
+  requestRefund: {
+    success: "Refund requested. Funds will be returned to your balance.",
+    failure: "Failed to request refund",
+  },
   submitReview: {
     success: "Review submitted successfully.",
     failure: "Failed to submit review",

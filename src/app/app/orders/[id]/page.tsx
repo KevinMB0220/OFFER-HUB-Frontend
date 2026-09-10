@@ -21,7 +21,11 @@ import { OrderReviewSection } from "@/components/orders/OrderReviewSection";
 import { OrderStatusBanner } from "@/components/orders/OrderStatusBanner";
 import { OrderSummaryHeader } from "@/components/orders/OrderSummaryHeader";
 import { ReleaseFundsModal } from "@/components/orders/ReleaseFundsModal";
+import { RefundModal } from "@/components/orders/RefundModal";
 import { SellerStatusPanel } from "@/components/orders/SellerStatusPanel";
+import { EscrowSigningModal } from "@/components/escrow/EscrowSigningModal";
+import { WalletConnectModal } from "@/components/wallet/WalletConnectModal";
+import { currentWalletName } from "@/hooks/useEscrowSigningAction";
 
 const ORDERS_ROUTE = "/app/orders";
 
@@ -53,8 +57,19 @@ export default function OrderDetailPage(): React.JSX.Element {
     onReviewChange: setReview,
     refetchOrder: refetch,
     onFundsReleased: modals.closeReleaseModal,
+    onRefundRequested: modals.closeRefundModal,
     onReviewSubmitted: modals.holdReviewModalOpen,
   });
+
+  // Only one of the three D2.1 signing flows can be mid-connect at a time —
+  // whichever one is, this is the wallet-connect guard driving it.
+  const activeWalletConnectGuard = actions.releaseSigning.isWalletConnectOpen
+    ? actions.releaseSigning
+    : actions.disputeSigning.isWalletConnectOpen
+      ? actions.disputeSigning
+      : actions.refundSigning.isWalletConnectOpen
+        ? actions.refundSigning
+        : null;
 
   if (isLoading) return <OrderDetailLoading />;
   if (!order) return <OrderNotFoundCard />;
@@ -112,6 +127,7 @@ export default function OrderDetailPage(): React.JSX.Element {
           onStartSecurePayment={actions.handleCreateEscrow}
           onRequestRelease={modals.openReleaseModal}
           onRequestDispute={modals.openDisputeModal}
+          onRequestRefund={modals.openRefundModal}
         />
       )}
 
@@ -135,18 +151,64 @@ export default function OrderDetailPage(): React.JSX.Element {
       )}
 
       <ReleaseFundsModal
-        isOpen={modals.isReleaseModalOpen}
+        isOpen={modals.isReleaseModalOpen && !actions.releaseSigning.isSigningModalOpen}
         amount={order.amount}
         isProcessing={actions.isProcessing}
+        error={actions.releaseSigning.inlineError}
         onCancel={modals.closeReleaseModal}
         onConfirm={actions.handleReleaseFunds}
       />
 
       <OpenDisputeModal
-        isOpen={modals.isDisputeModalOpen}
+        isOpen={modals.isDisputeModalOpen && !actions.disputeSigning.isSigningModalOpen}
         orderTitle={order.title}
         onClose={modals.closeDisputeModal}
         onSubmit={actions.handleOpenDispute}
+      />
+
+      <RefundModal
+        isOpen={modals.isRefundModalOpen && !actions.refundSigning.isSigningModalOpen}
+        amount={order.amount}
+        isProcessing={actions.isProcessing}
+        error={actions.refundSigning.inlineError}
+        onCancel={modals.closeRefundModal}
+        onConfirm={actions.handleRequestRefund}
+      />
+
+      <EscrowSigningModal
+        isOpen={actions.releaseSigning.isSigningModalOpen}
+        state={actions.releaseSigning.signingState}
+        error={null}
+        transactionHash={null}
+        walletName={currentWalletName()}
+        onRetry={() => void actions.handleReleaseFunds()}
+        onClose={modals.closeReleaseModal}
+      />
+
+      <EscrowSigningModal
+        isOpen={actions.disputeSigning.isSigningModalOpen}
+        state={actions.disputeSigning.signingState}
+        error={null}
+        transactionHash={null}
+        walletName={currentWalletName()}
+        onRetry={() => void actions.handleOpenDispute("OTHER", "")}
+        onClose={modals.closeDisputeModal}
+      />
+
+      <EscrowSigningModal
+        isOpen={actions.refundSigning.isSigningModalOpen}
+        state={actions.refundSigning.signingState}
+        error={null}
+        transactionHash={null}
+        walletName={currentWalletName()}
+        onRetry={() => void actions.handleRequestRefund("")}
+        onClose={modals.closeRefundModal}
+      />
+
+      <WalletConnectModal
+        isOpen={activeWalletConnectGuard !== null}
+        onClose={() => activeWalletConnectGuard?.closeWalletConnect()}
+        onConnected={() => activeWalletConnectGuard?.onWalletConnected()}
       />
 
       <OrderReviewPromptModal
