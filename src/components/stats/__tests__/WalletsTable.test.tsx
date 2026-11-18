@@ -45,6 +45,29 @@ describe("WalletsTable", () => {
     expect(writeText).toHaveBeenCalledWith(wallet.publicKey);
   });
 
+  it("links to the explorer only for wallets that exist on the ledger", () => {
+    render(
+      <WalletsTable
+        wallets={[
+          { ...wallet, id: "wallet-funded", onLedger: true },
+          {
+            ...wallet,
+            id: "wallet-unfunded",
+            publicKey: "GDDYBZUVWH2SMJVWYEPVSWQCYWHVSU7NNVANSEXSZLA6AYQHXK6HYTIT",
+            onLedger: false,
+          },
+          { ...wallet, id: "wallet-unknown", onLedger: null },
+        ]}
+        totalWallets={3}
+        isLoadingMore={false}
+        onShowMore={vi.fn()}
+      />
+    );
+
+    expect(screen.getAllByRole("link", { name: /View Ledger/ })).toHaveLength(2);
+    expect(screen.getByText("Not funded yet")).toBeInTheDocument();
+  });
+
   it("shows more wallets when requested", () => {
     const onShowMore = vi.fn();
     render(

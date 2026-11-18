@@ -108,15 +108,24 @@ export function WalletsTable({
                         {formatDate(wallet.createdAt)}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <a
-                          href={buildAccountExplorerUrl(wallet.publicKey)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 rounded-xl border border-border-light bg-background px-4 py-2 text-xs font-bold text-primary shadow-[var(--shadow-neumorphic-light)] transition-all duration-200 hover:shadow-[var(--shadow-neumorphic-inset-light)] active:scale-95"
-                        >
-                          <span>View Ledger</span>
-                          <Icon path={ICON_PATHS.externalLink} size="sm" />
-                        </a>
+                        {wallet.onLedger === false ? (
+                          <span
+                            title="This account has not received any XLM yet, so it does not exist on the ledger."
+                            className="inline-flex items-center rounded-xl border border-border-light bg-background px-4 py-2 text-xs font-bold text-text-secondary shadow-[var(--shadow-neumorphic-inset-light)]"
+                          >
+                            Not funded yet
+                          </span>
+                        ) : (
+                          <a
+                            href={buildAccountExplorerUrl(wallet.publicKey)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 rounded-xl border border-border-light bg-background px-4 py-2 text-xs font-bold text-primary shadow-[var(--shadow-neumorphic-light)] transition-all duration-200 hover:shadow-[var(--shadow-neumorphic-inset-light)] active:scale-95"
+                          >
+                            <span>View Ledger</span>
+                            <Icon path={ICON_PATHS.externalLink} size="sm" />
+                          </a>
+                        )}
                       </td>
                     </tr>
                   );

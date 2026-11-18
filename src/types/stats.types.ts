@@ -75,6 +75,12 @@ export interface RecentWallet {
   id: string;
   publicKey: string;
   createdAt: string;
+  /**
+   * Whether the account exists on the ledger: a wallet can sign in without
+   * ever being funded, and then has no explorer page. null when the API could
+   * not read the ledger; absent from APIs older than OFFER-HUB-API #430.
+   */
+  onLedger?: boolean | null;
 }
 
 export interface RecentEscrow {
